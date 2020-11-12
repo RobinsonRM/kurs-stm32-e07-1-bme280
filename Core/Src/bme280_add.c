@@ -7,13 +7,16 @@
 #include "bme280.h"
 #include "bme280_add.h"
 #include "i2c.h"
+#include <stdio.h>
 
 static struct bme280_dev bme;
 static struct bme280_data comp_data;
+static int8_t init_done;
 
 int8_t BME280_init(void) {
 	int8_t rslt = BME280_OK;
 	uint8_t settings_sel;
+	init_done = BME280_E_DEV_NOT_FOUND;
 
 	bme.dev_id = (BME280_I2C_ADDR_PRIM<<1);
 	bme.intf = BME280_I2C_INTF;
@@ -30,26 +33,38 @@ int8_t BME280_init(void) {
 	bme.settings.filter = BME280_FILTER_COEFF_16;
 	bme.settings.standby_time = BME280_STANDBY_TIME_62_5_MS;
 
-	settings_sel = BME280_OSR_PRESS_SEL;
-	settings_sel |= BME280_OSR_TEMP_SEL;
-	settings_sel |= BME280_OSR_HUM_SEL;
-	settings_sel |= BME280_STANDBY_SEL;
-	settings_sel |= BME280_FILTER_SEL;
-	rslt = bme280_set_sensor_settings(settings_sel, &bme);
-	rslt = bme280_set_sensor_mode(BME280_NORMAL_MODE, &bme);
+	if(rslt == BME280_OK)
+	{
+		settings_sel = BME280_OSR_PRESS_SEL;
+		settings_sel |= BME280_OSR_TEMP_SEL;
+		settings_sel |= BME280_OSR_HUM_SEL;
+		settings_sel |= BME280_STANDBY_SEL;
+		settings_sel |= BME280_FILTER_SEL;
+
+		rslt = bme280_set_sensor_settings(settings_sel, &bme);
+
+		if(rslt == BME280_OK)
+		{
+			rslt = bme280_set_sensor_mode(BME280_NORMAL_MODE, &bme);
+			init_done = rslt;
+		}
+	}
 
 	return rslt;
 }
 
 /* read data in normal mode */
 int8_t BME280_read_data(void) {
-	int8_t rslt;
+	int8_t rslt = BME280_E_COMM_FAIL;
 
-	printf("Temperature, Pressure, Humidity\r\n");
-	/* Pobranie danych z czujnika i wyswietlenie */
-	rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &bme);
-	bme.delay_ms(70);
-	print_sensor_data(&comp_data);
+	if(init_done == BME280_OK)
+	{
+		printf("Temperature, Pressure, Humidity\r\n");
+		/* Pobranie danych z czujnika i wyswietlenie */
+		rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &bme);
+		bme.delay_ms(70);
+		print_sensor_data(&comp_data);
+	}
 
 	return rslt;
 }
